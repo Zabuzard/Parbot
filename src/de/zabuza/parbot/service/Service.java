@@ -38,6 +38,11 @@ public final class Service extends Thread {
 	 */
 	private final IChat mChat;
 	/**
+	 * The username of the chat-bot for distinguishing own posted message from
+	 * other users.
+	 */
+	private final String mChatbotUsername;
+	/**
 	 * Internal flag whether the service should run or not. If set to
 	 * <tt>false</tt> the service will not enter the next iteration of its life
 	 * cycle and shutdown.
@@ -95,20 +100,24 @@ public final class Service extends Thread {
 	 *            games chat
 	 * @param brainBridge
 	 *            The client to use for accessing the brain bridge API
+	 * @param chatbotUsername
+	 *            The username of the chat-bot for distinguishing own posted
+	 *            message from other users
 	 * @param terminationTimeStamp
 	 *            A timestamp in milliseconds when the service must shutdown
-	 *            itself as assigned time window was exceeded
-	 * 
+	 *            itself as assigned time window was exceeded or <tt>-1</tt> if
+	 *            there is no time window
 	 * @param parent
 	 *            The parent object that controls the service. If the service
 	 *            shuts down in an abnormal way it will request its parent to
 	 *            also shutdown.
 	 */
 	public Service(final IFreewarAPI api, final IChat chat, final BrainBridgeClient brainBridge,
-			final long terminationTimeStamp, final Parbot parent) {
+			final String chatbotUsername, final long terminationTimeStamp, final Parbot parent) {
 		this.mApi = api;
 		this.mChat = chat;
 		this.mBrainBridge = brainBridge;
+		this.mChatbotUsername = chatbotUsername;
 		this.mTerminationTimeStamp = terminationTimeStamp;
 		this.mParent = parent;
 		this.mRoutine = null;
@@ -171,21 +180,30 @@ public final class Service extends Thread {
 	 */
 	@Override
 	public void run() {
+		boolean terminateParent = false;
 		try {
 			// Create the routine
-			this.mRoutine = new Routine(this, this.mChat, this.mBrainBridge);
+			this.mRoutine = new Routine(this, this.mChat, this.mBrainBridge, this.mChatbotUsername);
 		} catch (final Exception e) {
 			// Do not enter the service loop
 			this.mLogger.logError("Error while starting service, not entering: " + LoggerUtil.getStackTrace(e));
 			this.mDoRun = false;
+			terminateParent = true;
 		}
 
 		// Enter the life cycle
 		while (this.mDoRun) {
 			try {
 				final long currentTime = System.currentTimeMillis();
-				if (hasProblem() || this.mShouldStopService || currentTime >= this.mTerminationTimeStamp) {
+				if (this.mShouldStopService) {
 					this.mDoRun = false;
+				} else if (hasProblem()) {
+					this.mDoRun = false;
+					terminateParent = true;
+				} else if (this.mTerminationTimeStamp >= 0 && currentTime >= this.mTerminationTimeStamp) {
+					this.mLogger.logInfo("Time window exceeded, shutting down");
+					this.mDoRun = false;
+					terminateParent = true;
 				}
 
 				if (this.mDoRun) {
@@ -205,7 +223,9 @@ public final class Service extends Thread {
 		shutdown();
 
 		// Request parent to terminate
-		this.mParent.shutdown();
+		if (terminateParent) {
+			this.mParent.shutdown();
+		}
 	}
 
 	/**

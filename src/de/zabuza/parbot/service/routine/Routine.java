@@ -64,6 +64,11 @@ public final class Routine {
 	 */
 	private final IChat mChat;
 	/**
+	 * The username of the chat-bot for distinguishing own posted message from
+	 * other users.
+	 */
+	private final String mChatbotUsername;
+	/**
 	 * The current chat instance to use or <tt>null</tt> if there is no.
 	 */
 	private BrainInstance mCurrentInstance;
@@ -72,10 +77,9 @@ public final class Routine {
 	 */
 	private String mCurrentSelectedUser;
 	/**
-	 * The last known message of the current selected player or <tt>null</tt> if
-	 * there is no.
+	 * The last known message of all players or <tt>null</tt> if there is no.
 	 */
-	private String mLastKnownPlayerMessage;
+	private Message mLastKnownMessage;
 	/**
 	 * The logger to use for logging.
 	 */
@@ -146,12 +150,17 @@ public final class Routine {
 	 *            games chat
 	 * @param brainBridge
 	 *            The client to use for accessing the brain bridge API
+	 * @param chatbotUsername
+	 *            The username of the chat-bot for distinguishing own posted
+	 *            message from other users
 	 */
-	public Routine(final Service service, final IChat chat, final BrainBridgeClient brainBridge) {
+	public Routine(final Service service, final IChat chat, final BrainBridgeClient brainBridge,
+			final String chatbotUsername) {
 		this.mLogger = LoggerFactory.getLogger();
 		this.mService = service;
 		this.mChat = chat;
 		this.mBrainBridge = brainBridge;
+		this.mChatbotUsername = chatbotUsername;
 		this.mPhase = EPhase.SELECT_USER;
 
 		this.mProblemSelfResolvingTries = 0;
@@ -161,7 +170,7 @@ public final class Routine {
 		this.mCurrentInstance = null;
 		this.mCurrentSelectedUser = null;
 		this.mPlayerMessage = null;
-		this.mLastKnownPlayerMessage = null;
+		this.mLastKnownMessage = null;
 		this.mPlayerAnswer = null;
 		this.mNoMessageTimeoutCounter = 0L;
 		this.mNoMessageTimeoutLastTimestamp = 0L;
@@ -193,7 +202,7 @@ public final class Routine {
 		}
 		this.mCurrentSelectedUser = null;
 		this.mPlayerMessage = null;
-		this.mLastKnownPlayerMessage = null;
+		this.mLastKnownMessage = null;
 		this.mPlayerAnswer = null;
 		this.mNoMessageTimeoutCounter = 0L;
 		this.mNoMessageTimeoutLastTimestamp = 0L;
@@ -240,10 +249,11 @@ public final class Routine {
 				if (this.mCurrentSelectedUser != null && this.mCurrentInstance == null) {
 					throw new UserSelectionNotPossibleException();
 				}
-				// In other cases simply try it again
 
-				// Proceed to the next phase
-				setPhase(EPhase.FETCH_PLAYER_MESSAGE);
+				// Proceed to the next phase if a user could be selected
+				if (this.mCurrentInstance != null && this.mCurrentSelectedUser != null) {
+					setPhase(EPhase.FETCH_PLAYER_MESSAGE);
+				}
 				return;
 			}
 
@@ -258,14 +268,25 @@ public final class Routine {
 				// If there was no unknown message
 				if (this.mPlayerMessage == null) {
 					if (this.mNoMessageTimeoutLastTimestamp == 0L) {
+						if (this.mLogger.isDebugEnabled()) {
+							this.mLogger.logDebug("No message received, start counting");
+						}
 						// Start counting from now on
 						this.mNoMessageTimeoutLastTimestamp = System.currentTimeMillis();
 					} else {
 						final long timeNow = System.currentTimeMillis();
+						final long difference = timeNow - this.mNoMessageTimeoutLastTimestamp;
+						this.mNoMessageTimeoutLastTimestamp = timeNow;
+						if (this.mLogger.isDebugEnabled()) {
+							this.mLogger.logDebug("No message received, increasing by " + difference);
+						}
 						// Add the difference from the last time to now
-						this.mNoMessageTimeoutCounter += timeNow - this.mNoMessageTimeoutLastTimestamp;
+						this.mNoMessageTimeoutCounter += difference;
 					}
 				} else {
+					if (this.mLogger.isDebugEnabled()) {
+						this.mLogger.logDebug("Message received");
+					}
 					// Reset the counter
 					this.mNoMessageTimeoutCounter = 0L;
 					this.mNoMessageTimeoutLastTimestamp = 0L;
@@ -273,10 +294,29 @@ public final class Routine {
 
 				// Proceed to the next phase
 				if (this.mNoMessageTimeoutCounter >= NO_MESSAGE_TIMEOUT_LIMIT) {
+					if (this.mLogger.isDebugEnabled()) {
+						this.mLogger.logDebug("No message receive limit exceeded");
+					}
 					// Select a new user
 					setPhase(EPhase.SELECT_USER);
-				} else {
-					// Continue with the regular phase sequence
+				} else if (this.mPlayerMessage == null && this.mLastKnownMessage != null) {
+					// Check if a user requests focus switch
+					final Optional<String> senderOfLastMessage = this.mLastKnownMessage.getSender();
+					if (senderOfLastMessage.isPresent()
+							&& !senderOfLastMessage.get().equals(this.mCurrentSelectedUser)) {
+						final String lastMessageContent = this.mLastKnownMessage.getContent().toLowerCase();
+						final String focusSwitchNeedle = this.mChatbotUsername.toLowerCase();
+						if (lastMessageContent.contains(focusSwitchNeedle)) {
+							// Select a new user
+							if (this.mLogger.isDebugEnabled()) {
+								this.mLogger.logDebug("User requested focus switch");
+							}
+							setPhase(EPhase.SELECT_USER);
+						}
+					}
+				} else if (this.mPlayerMessage != null) {
+					// Continue with the regular phase sequence if a message
+					// could be found
 					setPhase(EPhase.FETCH_ANSWER);
 				}
 				return;
@@ -354,18 +394,23 @@ public final class Routine {
 		// Reversely iterate the chat messages to find the latest unknown
 		// message
 		for (int i = chatMessages.size() - 1; i >= 0; i--) {
-			final Message lastMessage = chatMessages.get(chatMessages.size() - 1);
-			final Optional<String> sender = lastMessage.getSender();
+			final Message currentMessage = chatMessages.get(i);
+			// All unknown message where fetched, reached only known messages
+			if (currentMessage.equals(this.mLastKnownMessage)) {
+				break;
+			}
+
+			// Search unknown messages of the current selected player
+			final Optional<String> sender = currentMessage.getSender();
 			if (sender.isPresent() && this.mCurrentSelectedUser.equals(sender.get())) {
-				final String messageContent = lastMessage.getContent();
-				if (!messageContent.equals(this.mLastKnownPlayerMessage)) {
-					// The message is unknown
-					this.mPlayerMessage = messageContent;
-					this.mLastKnownPlayerMessage = messageContent;
-				}
+				// The message is unknown and of the current selected player
+				this.mPlayerMessage = currentMessage.getContent();
 				break;
 			}
 		}
+
+		// Update the last known message
+		this.mLastKnownMessage = chatMessages.get(chatMessages.size() - 1);
 	}
 
 	/**
@@ -373,7 +418,7 @@ public final class Routine {
 	 * in the game.
 	 */
 	private void postAnswer() {
-		final String adjustedAnswer = this.mCurrentSelectedUser + ", " + this.mPlayerAnswer;
+		final String adjustedAnswer = this.mPlayerAnswer;
 		this.mChat.submitMessage(adjustedAnswer, CHAT_TYPE_RESTRICTION);
 	}
 
@@ -388,7 +433,7 @@ public final class Routine {
 			this.mCurrentInstance = null;
 		}
 		this.mCurrentSelectedUser = null;
-		this.mLastKnownPlayerMessage = null;
+		this.mLastKnownMessage = null;
 		this.mNoMessageTimeoutCounter = 0L;
 		this.mNoMessageTimeoutLastTimestamp = 0L;
 
@@ -400,8 +445,12 @@ public final class Routine {
 			final Message lastMessage = chatMessages.get(chatMessages.size() - 1);
 			final Optional<String> sender = lastMessage.getSender();
 			if (sender.isPresent()) {
-				this.mCurrentSelectedUser = sender.get();
-				break;
+				final String senderCandidate = sender.get();
+				// Reject the candidate if it is the chat-bot itself
+				if (!senderCandidate.equals(this.mChatbotUsername)) {
+					this.mCurrentSelectedUser = senderCandidate;
+					break;
+				}
 			}
 		}
 

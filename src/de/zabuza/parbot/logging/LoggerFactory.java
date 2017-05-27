@@ -22,7 +22,7 @@ public final class LoggerFactory {
 	 */
 	public static ILogger getLogger() {
 		if (loggerInstance == null) {
-			loggerInstance = new HtmlLogger();
+			loggerInstance = new HtmlLogger(false);
 		}
 
 		return loggerInstance;

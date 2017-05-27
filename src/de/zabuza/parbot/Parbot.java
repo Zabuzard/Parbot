@@ -216,9 +216,14 @@ public final class Parbot {
 		try {
 			this.mLogger.logInfo("Starting service");
 
-			final long currentTime = System.currentTimeMillis();
-			final long timeWindowInMillis = timeWindow * 60 * 1000;
-			final long terminationTimeStamp = currentTime + timeWindowInMillis;
+			final long terminationTimeStamp;
+			if (timeWindow <= 0) {
+				terminationTimeStamp = -1;
+			} else {
+				final long currentTime = System.currentTimeMillis();
+				final long timeWindowInMillis = timeWindow * 60 * 1000;
+				terminationTimeStamp = currentTime + timeWindowInMillis;
+			}
 
 			final String username = userSettingsProvider.getUserName();
 			final String password = userSettingsProvider.getPassword();
@@ -244,7 +249,8 @@ public final class Parbot {
 
 			// Create and start all services
 			final BrainBridgeClient brainBridge = new BrainBridgeClient(serverAddress, port);
-			this.mService = new Service(this.mApi, this.mInstance.getChat(), brainBridge, terminationTimeStamp, this);
+			this.mService = new Service(this.mApi, this.mInstance.getChat(), brainBridge, username,
+					terminationTimeStamp, this);
 			this.mService.start();
 		} catch (final Exception e) {
 			this.mLogger.logError("Error while starting service, shutting down: " + LoggerUtil.getStackTrace(e));
