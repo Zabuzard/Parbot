@@ -9,6 +9,7 @@ import javax.imageio.ImageIO;
 
 import org.openqa.selenium.remote.DesiredCapabilities;
 
+import de.zabuza.brainbridge.client.BrainBridgeClient;
 import de.zabuza.parbot.exceptions.EmptyUserCredentialsException;
 import de.zabuza.parbot.logging.ILogger;
 import de.zabuza.parbot.logging.LoggerFactory;
@@ -175,12 +176,18 @@ public final class Parbot {
 		}
 		final int port = portFromSettings.intValue();
 
-		final String service = this.mSettingsController.getService();
-		if (service == null) {
+		final String serverAddress = this.mSettingsController.getServerAddress();
+		if (serverAddress == null) {
 			throw new IllegalArgumentException();
 		}
 
-		startService(port, service, this.mSettingsController, this.mSettingsController);
+		final Integer timeWindowFromSettings = this.mSettingsController.getTimeWindow();
+		if (timeWindowFromSettings == null) {
+			throw new IllegalArgumentException();
+		}
+		final int timeWindow = timeWindowFromSettings.intValue();
+
+		startService(port, serverAddress, timeWindow, this.mSettingsController, this.mSettingsController);
 	}
 
 	/**
@@ -189,8 +196,10 @@ public final class Parbot {
 	 * 
 	 * @param port
 	 *            The port to use for communication
-	 * @param service
+	 * @param serverAddress
 	 *            The address of the service to use for chat
+	 * @param timeWindow
+	 *            The maximal time the service is allowed to run in minutes
 	 * @param userSettingsProvider
 	 *            Object that provides settings about the Freewar user to use
 	 *            for the tool
@@ -201,10 +210,15 @@ public final class Parbot {
 	 *             If user settings like name or password are empty or
 	 *             <tt>null</tt>
 	 */
-	public void startService(final int port, final String service, final IUserSettingsProvider userSettingsProvider,
-			final IBrowserSettingsProvider browserSettingsProvider) throws EmptyUserCredentialsException {
+	public void startService(final int port, final String serverAddress, final int timeWindow,
+			final IUserSettingsProvider userSettingsProvider, final IBrowserSettingsProvider browserSettingsProvider)
+					throws EmptyUserCredentialsException {
 		try {
 			this.mLogger.logInfo("Starting service");
+
+			final long currentTime = System.currentTimeMillis();
+			final long timeWindowInMillis = timeWindow * 60 * 1000;
+			final long terminationTimeStamp = currentTime + timeWindowInMillis;
 
 			final String username = userSettingsProvider.getUserName();
 			final String password = userSettingsProvider.getPassword();
@@ -229,7 +243,8 @@ public final class Parbot {
 			this.mInstance = this.mApi.login(username, password, world);
 
 			// Create and start all services
-			this.mService = new Service(port, service, this.mApi, this.mInstance, this);
+			final BrainBridgeClient brainBridge = new BrainBridgeClient(serverAddress, port);
+			this.mService = new Service(this.mApi, this.mInstance.getChat(), brainBridge, terminationTimeStamp, this);
 			this.mService.start();
 		} catch (final Exception e) {
 			this.mLogger.logError("Error while starting service, shutting down: " + LoggerUtil.getStackTrace(e));

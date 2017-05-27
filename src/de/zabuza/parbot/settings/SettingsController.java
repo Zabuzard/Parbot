@@ -43,7 +43,12 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 	/**
 	 * Key identifier for service settings.
 	 */
-	private static final String KEY_IDENTIFIER_SERVICE = "service";
+	private static final String KEY_IDENTIFIER_SERVER_ADDRESS = "serverAddress";
+	/**
+	 * Key identifier for the time window.
+	 */
+	private static final String KEY_IDENTIFIER_TIME_WINDOW = "timeWindow";
+
 	/**
 	 * Key identifier for user profile setting.
 	 */
@@ -53,7 +58,6 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 	 * Key identifier for the username.
 	 */
 	private static final String KEY_IDENTIFIER_USERNAME = "username";
-
 	/**
 	 * Key identifier for the selected world.
 	 */
@@ -85,7 +89,8 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 		settings.setWorld(EWorld.ONE);
 
 		settings.setPort(8110);
-		settings.setService("http://www.example.org");
+		settings.setServerAddress("http://www.example.org");
+		settings.setTimeWindow(30);
 
 		settings.saveSettings();
 	}
@@ -195,12 +200,12 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 	}
 
 	/**
-	 * Gets the set service.
+	 * Gets the set server address.
 	 * 
-	 * @return The set service or <tt>null</tt> if there is no
+	 * @return The set server address or <tt>null</tt> if there is no
 	 */
-	public String getService() {
-		final String value = getSetting(KEY_IDENTIFIER_SERVICE);
+	public String getServerAddress() {
+		final String value = getSetting(KEY_IDENTIFIER_SERVER_ADDRESS);
 		if (value != null) {
 			return value;
 		}
@@ -220,6 +225,19 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 			value = UNKNOWN_KEY_VALUE;
 		}
 		return value;
+	}
+
+	/**
+	 * Gets the set time window in minutes.
+	 * 
+	 * @return The set time window or <tt>null</tt> if there is no
+	 */
+	public Integer getTimeWindow() {
+		final String value = getSetting(KEY_IDENTIFIER_TIME_WINDOW);
+		if (value != null) {
+			return Integer.valueOf(value);
+		}
+		return null;
 	}
 
 	/*
@@ -353,15 +371,15 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 	}
 
 	/**
-	 * Sets the service to use.
+	 * Sets the server address to use.
 	 * 
-	 * @param service
-	 *            The service to set
+	 * @param serverAddress
+	 *            The server address to set
 	 */
-	public void setService(final String service) {
-		if (service != null) {
-			final String key = KEY_IDENTIFIER_SERVICE;
-			setSetting(key, service);
+	public void setServerAddress(final String serverAddress) {
+		if (serverAddress != null) {
+			final String key = KEY_IDENTIFIER_SERVER_ADDRESS;
+			setSetting(key, serverAddress);
 		}
 	}
 
@@ -375,6 +393,19 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 	@Override
 	public void setSetting(final String key, final String value) {
 		this.mSettingsStore.put(key, value);
+	}
+
+	/**
+	 * Sets the time window to use.
+	 * 
+	 * @param timeWindow
+	 *            The timeWindow to use in minutes
+	 */
+	public void setTimeWindow(final int timeWindow) {
+		if (timeWindow > 0) {
+			final String key = KEY_IDENTIFIER_TIME_WINDOW;
+			setSetting(key, Integer.toString(timeWindow));
+		}
 	}
 
 	/**
