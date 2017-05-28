@@ -35,14 +35,15 @@ import de.zabuza.sparkle.freewar.chat.Message;
  */
 public final class Routine {
 	/**
-	 * Only select users from the given chat type.
+	 * Only select users from the given chat type. //TODO This should be a
+	 * setting
 	 */
 	private static final EChatType CHAT_TYPE_RESTRICTION = EChatType.GLOBAL;
 	/**
 	 * The timeout limit when receiving no messages from a player triggers the
-	 * selection of a new player.
+	 * selection of a new player. //TODO This should be a setting
 	 */
-	private static final long NO_MESSAGE_TIMEOUT_LIMIT = 60_000L;
+	private static final long NO_MESSAGE_TIMEOUT_LIMIT = 120_000L;
 	/**
 	 * Amount of how many update phases the routine is allowed to use for
 	 * resolving a problem by itself. If it does not resolve the problem within
