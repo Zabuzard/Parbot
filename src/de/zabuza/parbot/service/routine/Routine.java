@@ -40,6 +40,10 @@ public final class Routine {
 	 */
 	private static final EChatType CHAT_TYPE_RESTRICTION = EChatType.GLOBAL;
 	/**
+	 * Constant for an empty text.
+	 */
+	private static final String EMPTY_TEXT = "";
+	/**
 	 * The timeout limit when receiving no messages from a player triggers the
 	 * selection of a new player. //TODO This should be a setting
 	 */
@@ -56,6 +60,11 @@ public final class Routine {
 	 * counter.
 	 */
 	private static final int PROBLEM_SELF_RESOLVING_TRIES_RESET = 3;
+	/**
+	 * Prepend this operator to indicate that a REGEX should match case
+	 * insensitive.
+	 */
+	private static final String REGEX_CASE_INSENSITIVE_OPERATOR = "(?i)";
 	/**
 	 * The client to use for accessing the brain bridge API.
 	 */
@@ -122,11 +131,13 @@ public final class Routine {
 	 * resolve by itself.
 	 */
 	private int mProblemSelfResolvingTries;
+
 	/**
 	 * The service to use for callback when encountering a problem that needs to
 	 * be resolved.
 	 */
 	private final Service mService;
+
 	/**
 	 * Whether there was a problem in the last update phase of the routine or
 	 * not.
@@ -405,7 +416,10 @@ public final class Routine {
 			final Optional<String> sender = currentMessage.getSender();
 			if (sender.isPresent() && this.mCurrentSelectedUser.equals(sender.get())) {
 				// The message is unknown and of the current selected player
-				this.mPlayerMessage = currentMessage.getContent();
+				// Remove all occurrences of the bot name so that the chat bot
+				// feels addressed
+				this.mPlayerMessage = currentMessage.getContent()
+						.replaceAll(REGEX_CASE_INSENSITIVE_OPERATOR + this.mChatbotUsername, EMPTY_TEXT);
 				break;
 			}
 		}
