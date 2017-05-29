@@ -249,8 +249,7 @@ public final class Parbot {
 
 			// Create and start all services
 			final BrainBridgeClient brainBridge = new BrainBridgeClient(serverAddress, port);
-			this.mService = new Service(this.mApi, this.mInstance.getChat(), brainBridge, username,
-					terminationTimeStamp, this);
+			this.mService = new Service(this.mApi, this.mInstance, brainBridge, username, terminationTimeStamp, this);
 			this.mService.start();
 		} catch (final Exception e) {
 			this.mLogger.logError("Error while starting service, shutting down: " + LoggerUtil.getStackTrace(e));

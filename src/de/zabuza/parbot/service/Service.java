@@ -7,6 +7,7 @@ import de.zabuza.parbot.logging.LoggerFactory;
 import de.zabuza.parbot.logging.LoggerUtil;
 import de.zabuza.parbot.service.routine.Routine;
 import de.zabuza.sparkle.IFreewarAPI;
+import de.zabuza.sparkle.freewar.IFreewarInstance;
 import de.zabuza.sparkle.freewar.chat.IChat;
 
 /**
@@ -95,9 +96,8 @@ public final class Service extends Thread {
 	 * 
 	 * @param api
 	 *            The Freewar API to use for accessing the games contents
-	 * @param chat
-	 *            The chat instance of the Freewar API to use for accessing the
-	 *            games chat
+	 * @param instance
+	 *            The Freewar instance to use for interaction with the game
 	 * @param brainBridge
 	 *            The client to use for accessing the brain bridge API
 	 * @param chatbotUsername
@@ -112,10 +112,11 @@ public final class Service extends Thread {
 	 *            shuts down in an abnormal way it will request its parent to
 	 *            also shutdown.
 	 */
-	public Service(final IFreewarAPI api, final IChat chat, final BrainBridgeClient brainBridge,
+	public Service(final IFreewarAPI api, final IFreewarInstance instance, final BrainBridgeClient brainBridge,
 			final String chatbotUsername, final long terminationTimeStamp, final Parbot parent) {
 		this.mApi = api;
-		this.mChat = chat;
+		this.mInstance = instance;
+		this.mChat = instance.getChat();
 		this.mBrainBridge = brainBridge;
 		this.mChatbotUsername = chatbotUsername;
 		this.mTerminationTimeStamp = terminationTimeStamp;
@@ -126,6 +127,11 @@ public final class Service extends Thread {
 		this.mDoRun = true;
 		this.mShouldStopService = false;
 	}
+
+	/**
+	 * The Freewar instance to use for interaction with the game.
+	 */
+	private IFreewarInstance mInstance;
 
 	/**
 	 * Gets the current encountered problem if set. It is set if the service
@@ -280,6 +286,14 @@ public final class Service extends Thread {
 			}
 		}
 		if (this.mApi != null) {
+			try {
+				if (this.mInstance != null) {
+					this.mApi.logout(this.mInstance, true);
+				}
+			} catch (final Exception e) {
+				// Log the error but continue
+				this.mLogger.logError("Error while logging out: " + LoggerUtil.getStackTrace(e));
+			}
 			try {
 				this.mApi.shutdown(true);
 			} catch (final Exception e) {
