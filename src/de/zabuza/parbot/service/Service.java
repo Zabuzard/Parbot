@@ -52,7 +52,7 @@ public final class Service extends Thread {
 	/**
 	 * The Freewar instance to use for interaction with the game.
 	 */
-	private IFreewarInstance mInstance;
+	private final IFreewarInstance mInstance;
 	/**
 	 * The logger to use for logging.
 	 */
