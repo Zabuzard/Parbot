@@ -206,7 +206,9 @@ public final class Parbot {
 
 			// Create Freewar API
 			final EBrowser browser = browserSettingsProvider.getBrowser();
-			this.mApi = new Sparkle(browser);
+			// No need for a delayed web driver since we will only click the
+			// chat button once in a time
+			this.mApi = new Sparkle(browser, false);
 
 			// Set options
 			final DesiredCapabilities capabilities = this.mApi.createCapabilities(browser,

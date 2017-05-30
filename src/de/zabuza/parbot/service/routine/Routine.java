@@ -1,12 +1,11 @@
 package de.zabuza.parbot.service.routine;
 
 import java.util.ArrayList;
+import java.util.Optional;
 
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.TimeoutException;
-
-import com.google.common.base.Optional;
 
 import de.zabuza.brainbridge.client.BrainBridgeClient;
 import de.zabuza.brainbridge.client.BrainInstance;
