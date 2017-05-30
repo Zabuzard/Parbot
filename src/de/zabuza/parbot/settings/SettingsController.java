@@ -7,6 +7,7 @@ import de.zabuza.parbot.logging.ILogger;
 import de.zabuza.parbot.logging.LoggerFactory;
 import de.zabuza.parbot.logging.LoggerUtil;
 import de.zabuza.sparkle.freewar.EWorld;
+import de.zabuza.sparkle.freewar.chat.EChatType;
 import de.zabuza.sparkle.webdriver.EBrowser;
 
 /**
@@ -15,7 +16,8 @@ import de.zabuza.sparkle.webdriver.EBrowser;
  * @author Zabuza {@literal <zabuza.dev@gmail.com>}
  *
  */
-public final class SettingsController implements ISettingsProvider, IBrowserSettingsProvider, IUserSettingsProvider {
+public final class SettingsController
+		implements ISettingsProvider, IBrowserSettingsProvider, IUserSettingsProvider, IBotSettingsProvider {
 	/**
 	 * Text to save for a value if a key is unknown.
 	 */
@@ -29,9 +31,17 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 	 */
 	private static final String KEY_IDENTIFIER_BROWSER = "browser";
 	/**
+	 * Key identifier for chat type restriction settings.
+	 */
+	private static final String KEY_IDENTIFIER_CHAT_TYPE_RESTRICTION = "chatTypeRestriction";
+	/**
 	 * Key identifier for driver settings.
 	 */
 	private static final String KEY_IDENTIFIER_DRIVER = "driver";
+	/**
+	 * Key identifier for focus lost timeout settings.
+	 */
+	private static final String KEY_IDENTIFIER_FOCUS_LOST_TIMEOUT = "focusLostTimeout";
 	/**
 	 * Key identifier for the password.
 	 */
@@ -40,28 +50,30 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 	 * Key identifier for port settings.
 	 */
 	private static final String KEY_IDENTIFIER_PORT = "port";
+
 	/**
 	 * Key identifier for service settings.
 	 */
 	private static final String KEY_IDENTIFIER_SERVER_ADDRESS = "serverAddress";
+
 	/**
 	 * Key identifier for the time window.
 	 */
 	private static final String KEY_IDENTIFIER_TIME_WINDOW = "timeWindow";
-
 	/**
 	 * Key identifier for user profile setting.
 	 */
 	private static final String KEY_IDENTIFIER_USER_PROFILE = "userProfile";
-
 	/**
 	 * Key identifier for the username.
 	 */
 	private static final String KEY_IDENTIFIER_USERNAME = "username";
+
 	/**
 	 * Key identifier for the selected world.
 	 */
 	private static final String KEY_IDENTIFIER_WORLD = "world";
+
 	/**
 	 * Separator which separates several information in a key.
 	 */
@@ -91,6 +103,8 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 		settings.setPort(8110);
 		settings.setServerAddress("http://www.example.org");
 		settings.setTimeWindow(30);
+		settings.setChatTypeRestriction(EChatType.GLOBAL);
+		settings.setFocusLostTimeout(120_000L);
 
 		settings.saveSettings();
 	}
@@ -162,6 +176,31 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 	/*
 	 * (non-Javadoc)
 	 * 
+	 * @see de.zabuza.parbot.settings.IBotSettingsProvider#getChatbotUsername()
+	 */
+	@Override
+	public String getChatbotUsername() {
+		return getUserName();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * de.zabuza.parbot.settings.IBotSettingsProvider#getChatTypeRestriction()
+	 */
+	@Override
+	public EChatType getChatTypeRestriction() {
+		final String value = getSetting(KEY_IDENTIFIER_CHAT_TYPE_RESTRICTION);
+		if (value != null) {
+			return EChatType.valueOf(value);
+		}
+		return null;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see
 	 * de.zabuza.parbot.settings.IBrowserSettingsProvider#getDriverForBrowser(de
 	 * .zabuza.sparkle.webdriver.EBrowser)
@@ -179,6 +218,20 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 	/*
 	 * (non-Javadoc)
 	 * 
+	 * @see de.zabuza.parbot.settings.IBotSettingsProvider#getFocusLostTimeout()
+	 */
+	@Override
+	public Long getFocusLostTimeout() {
+		final String value = getSetting(KEY_IDENTIFIER_FOCUS_LOST_TIMEOUT);
+		if (value != null) {
+			return Long.valueOf(value);
+		}
+		return null;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see de.zabuza.parbot.settings.IUserSettingsProvider#getPassword()
 	 */
 	@Override
@@ -186,11 +239,12 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 		return getSetting(KEY_IDENTIFIER_PASSWORD);
 	}
 
-	/**
-	 * Gets the set port.
+	/*
+	 * (non-Javadoc)
 	 * 
-	 * @return The set port or <tt>null</tt> if there is no
+	 * @see de.zabuza.parbot.settings.IBotSettingsProvider#getPort()
 	 */
+	@Override
 	public Integer getPort() {
 		final String value = getSetting(KEY_IDENTIFIER_PORT);
 		if (value != null) {
@@ -199,11 +253,12 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 		return null;
 	}
 
-	/**
-	 * Gets the set server address.
+	/*
+	 * (non-Javadoc)
 	 * 
-	 * @return The set server address or <tt>null</tt> if there is no
+	 * @see de.zabuza.parbot.settings.IBotSettingsProvider#getServerAddress()
 	 */
+	@Override
 	public String getServerAddress() {
 		final String value = getSetting(KEY_IDENTIFIER_SERVER_ADDRESS);
 		if (value != null) {
@@ -227,11 +282,12 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 		return value;
 	}
 
-	/**
-	 * Gets the set time window in minutes.
+	/*
+	 * (non-Javadoc)
 	 * 
-	 * @return The set time window or <tt>null</tt> if there is no
+	 * @see de.zabuza.parbot.settings.IBotSettingsProvider#getTimeWindow()
 	 */
+	@Override
 	public Integer getTimeWindow() {
 		final String value = getSetting(KEY_IDENTIFIER_TIME_WINDOW);
 		if (value != null) {
@@ -330,6 +386,19 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 	}
 
 	/**
+	 * Sets the chat type the bot is restricted to.
+	 * 
+	 * @param chatType
+	 *            The chat type the bot is restricted to
+	 */
+	public void setChatTypeRestriction(final EChatType chatType) {
+		if (chatType != null) {
+			final String key = KEY_IDENTIFIER_CHAT_TYPE_RESTRICTION;
+			setSetting(key, chatType.toString());
+		}
+	}
+
+	/**
 	 * Sets the path to the driver to use for the given browser.
 	 * 
 	 * @param driver
@@ -342,6 +411,18 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 			final String key = KEY_IDENTIFIER_DRIVER + KEY_INFO_SEPARATOR + browser;
 			setSetting(key, driver);
 		}
+	}
+
+	/**
+	 * Sets the timeout after which the bot looses focus of its current player
+	 * when not receiving messages
+	 * 
+	 * @param timeout
+	 *            The timeout to set
+	 */
+	public void setFocusLostTimeout(final long timeout) {
+		final String key = KEY_IDENTIFIER_FOCUS_LOST_TIMEOUT;
+		setSetting(key, Long.toString(timeout));
 	}
 
 	/**
@@ -409,7 +490,7 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 	}
 
 	/**
-	 * Sets the username of the user
+	 * Sets the username of the user.
 	 * 
 	 * @param username
 	 *            The username to set
@@ -435,7 +516,7 @@ public final class SettingsController implements ISettingsProvider, IBrowserSett
 	}
 
 	/**
-	 * Sets the world of the user
+	 * Sets the world of the user.
 	 * 
 	 * @param world
 	 *            The world to set

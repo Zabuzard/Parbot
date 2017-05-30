@@ -16,6 +16,7 @@ import de.zabuza.parbot.logging.ILogger;
 import de.zabuza.parbot.logging.LoggerFactory;
 import de.zabuza.parbot.logging.LoggerUtil;
 import de.zabuza.parbot.service.Service;
+import de.zabuza.parbot.settings.IBotSettingsProvider;
 import de.zabuza.sparkle.freewar.chat.EChatType;
 import de.zabuza.sparkle.freewar.chat.IChat;
 import de.zabuza.sparkle.freewar.chat.Message;
@@ -35,19 +36,9 @@ import de.zabuza.sparkle.freewar.chat.Message;
  */
 public final class Routine {
 	/**
-	 * Only select users from the given chat type. //TODO This should be a
-	 * setting
-	 */
-	private static final EChatType CHAT_TYPE_RESTRICTION = EChatType.GLOBAL;
-	/**
 	 * Constant for an empty text.
 	 */
 	private static final String EMPTY_TEXT = "";
-	/**
-	 * The timeout limit when receiving no messages from a player triggers the
-	 * selection of a new player. //TODO This should be a setting
-	 */
-	private static final long NO_MESSAGE_TIMEOUT_LIMIT = 120_000L;
 	/**
 	 * Amount of how many update phases the routine is allowed to use for
 	 * resolving a problem by itself. If it does not resolve the problem within
@@ -79,6 +70,10 @@ public final class Routine {
 	 */
 	private final String mChatbotUsername;
 	/**
+	 * Only select users from the given chat type.
+	 */
+	private final EChatType mChatTypeRestriction;
+	/**
 	 * The current chat instance to use or <tt>null</tt> if there is no.
 	 */
 	private BrainInstance mCurrentInstance;
@@ -86,6 +81,11 @@ public final class Routine {
 	 * The name of the current selected user or <tt>null</tt> if there is no.
 	 */
 	private String mCurrentSelectedUser;
+	/**
+	 * The timeout limit when receiving no messages from a player triggers the
+	 * selection of a new player.
+	 */
+	private final long mFocusLostTimeout;
 	/**
 	 * The last known message of all players or <tt>null</tt> if there is no.
 	 */
@@ -162,18 +162,20 @@ public final class Routine {
 	 *            games chat
 	 * @param brainBridge
 	 *            The client to use for accessing the brain bridge API
-	 * @param chatbotUsername
-	 *            The username of the chat-bot for distinguishing own posted
-	 *            message from other users
+	 * @param botSettingsProvider
+	 *            Object that provides settings about bot settings to use
 	 */
 	public Routine(final Service service, final IChat chat, final BrainBridgeClient brainBridge,
-			final String chatbotUsername) {
+			final IBotSettingsProvider botSettingsProvider) {
 		this.mLogger = LoggerFactory.getLogger();
 		this.mService = service;
 		this.mChat = chat;
 		this.mBrainBridge = brainBridge;
-		this.mChatbotUsername = chatbotUsername;
 		this.mPhase = EPhase.SELECT_USER;
+
+		this.mChatbotUsername = botSettingsProvider.getChatbotUsername();
+		this.mFocusLostTimeout = botSettingsProvider.getFocusLostTimeout().longValue();
+		this.mChatTypeRestriction = botSettingsProvider.getChatTypeRestriction();
 
 		this.mProblemSelfResolvingTries = 0;
 		this.mProblemSelfResolvingPhasesWithoutProblem = 0;
@@ -305,7 +307,7 @@ public final class Routine {
 				}
 
 				// Proceed to the next phase
-				if (this.mNoMessageTimeoutCounter >= NO_MESSAGE_TIMEOUT_LIMIT) {
+				if (this.mNoMessageTimeoutCounter >= this.mFocusLostTimeout) {
 					if (this.mLogger.isDebugEnabled()) {
 						this.mLogger.logDebug("No message receive limit exceeded");
 					}
@@ -401,7 +403,7 @@ public final class Routine {
 		// Free previous resources
 		this.mPlayerMessage = null;
 
-		final ArrayList<Message> chatMessages = this.mChat.getMessages(CHAT_TYPE_RESTRICTION);
+		final ArrayList<Message> chatMessages = this.mChat.getMessages(this.mChatTypeRestriction);
 
 		// Reversely iterate the chat messages to find the latest unknown
 		// message
@@ -434,7 +436,7 @@ public final class Routine {
 	 */
 	private void postAnswer() {
 		final String adjustedAnswer = this.mPlayerAnswer;
-		this.mChat.submitMessage(adjustedAnswer, CHAT_TYPE_RESTRICTION);
+		this.mChat.submitMessage(adjustedAnswer, this.mChatTypeRestriction);
 	}
 
 	/**
@@ -453,7 +455,7 @@ public final class Routine {
 		this.mNoMessageTimeoutLastTimestamp = 0L;
 
 		// Select a new user
-		final ArrayList<Message> chatMessages = this.mChat.getMessages(CHAT_TYPE_RESTRICTION);
+		final ArrayList<Message> chatMessages = this.mChat.getMessages(this.mChatTypeRestriction);
 
 		// Reversely iterate the chat messages to find a user
 		for (int i = chatMessages.size() - 1; i >= 0; i--) {

@@ -15,6 +15,7 @@ import de.zabuza.parbot.logging.ILogger;
 import de.zabuza.parbot.logging.LoggerFactory;
 import de.zabuza.parbot.logging.LoggerUtil;
 import de.zabuza.parbot.service.Service;
+import de.zabuza.parbot.settings.IBotSettingsProvider;
 import de.zabuza.parbot.settings.IBrowserSettingsProvider;
 import de.zabuza.parbot.settings.IUserSettingsProvider;
 import de.zabuza.parbot.settings.SettingsController;
@@ -169,37 +170,15 @@ public final class Parbot {
 	 */
 	public void start() {
 		this.mLogger.logInfo("Parbot start");
-
-		final Integer portFromSettings = this.mSettingsController.getPort();
-		if (portFromSettings == null) {
-			throw new IllegalArgumentException();
-		}
-		final int port = portFromSettings.intValue();
-
-		final String serverAddress = this.mSettingsController.getServerAddress();
-		if (serverAddress == null) {
-			throw new IllegalArgumentException();
-		}
-
-		final Integer timeWindowFromSettings = this.mSettingsController.getTimeWindow();
-		if (timeWindowFromSettings == null) {
-			throw new IllegalArgumentException();
-		}
-		final int timeWindow = timeWindowFromSettings.intValue();
-
-		startService(port, serverAddress, timeWindow, this.mSettingsController, this.mSettingsController);
+		startService(this.mSettingsController, this.mSettingsController, this.mSettingsController);
 	}
 
 	/**
 	 * Starts the actual main service of the tool. The method tries to catch all
 	 * not caught exceptions to ensure a proper shutdown of the tool.
 	 * 
-	 * @param port
-	 *            The port to use for communication
-	 * @param serverAddress
-	 *            The address of the service to use for chat
-	 * @param timeWindow
-	 *            The maximal time the service is allowed to run in minutes
+	 * @param botSettingsProvider
+	 *            Object that provides settings about bot settings to use
 	 * @param userSettingsProvider
 	 *            Object that provides settings about the Freewar user to use
 	 *            for the tool
@@ -210,20 +189,11 @@ public final class Parbot {
 	 *             If user settings like name or password are empty or
 	 *             <tt>null</tt>
 	 */
-	public void startService(final int port, final String serverAddress, final int timeWindow,
+	public void startService(final IBotSettingsProvider botSettingsProvider,
 			final IUserSettingsProvider userSettingsProvider, final IBrowserSettingsProvider browserSettingsProvider)
 					throws EmptyUserCredentialsException {
 		try {
 			this.mLogger.logInfo("Starting service");
-
-			final long terminationTimeStamp;
-			if (timeWindow <= 0) {
-				terminationTimeStamp = -1;
-			} else {
-				final long currentTime = System.currentTimeMillis();
-				final long timeWindowInMillis = timeWindow * 60 * 1000;
-				terminationTimeStamp = currentTime + timeWindowInMillis;
-			}
 
 			final String username = userSettingsProvider.getUserName();
 			final String password = userSettingsProvider.getPassword();
@@ -248,8 +218,9 @@ public final class Parbot {
 			this.mInstance = this.mApi.login(username, password, world);
 
 			// Create and start all services
-			final BrainBridgeClient brainBridge = new BrainBridgeClient(serverAddress, port);
-			this.mService = new Service(this.mApi, this.mInstance, brainBridge, username, terminationTimeStamp, this);
+			final BrainBridgeClient brainBridge = new BrainBridgeClient(botSettingsProvider.getServerAddress(),
+					botSettingsProvider.getPort().intValue());
+			this.mService = new Service(this.mApi, this.mInstance, brainBridge, botSettingsProvider, this);
 			this.mService.start();
 		} catch (final Exception e) {
 			this.mLogger.logError("Error while starting service, shutting down: " + LoggerUtil.getStackTrace(e));
