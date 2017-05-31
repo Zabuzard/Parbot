@@ -375,7 +375,11 @@ public final class Routine {
 				// Log the problem but continue
 				this.mWasProblemLastUpdate = true;
 				this.mProblemSelfResolvingTries++;
-				this.mLogger.logError("Error while routine: " + LoggerUtil.getStackTrace(e));
+				// Do not log unfixable errors
+				if (!(e instanceof StaleElementReferenceException || e instanceof TimeoutException
+						|| e instanceof NoSuchElementException)) {
+					this.mLogger.logError("Error while routine: " + LoggerUtil.getStackTrace(e));
+				}
 			}
 		} catch (final Exception e) {
 			this.mWasProblemLastUpdate = true;
