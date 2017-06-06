@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.WebDriverException;
 
 import de.zabuza.brainbridge.client.BrainBridgeClient;
 import de.zabuza.brainbridge.client.BrainInstance;
@@ -365,8 +366,7 @@ public final class Routine {
 				setPhase(EPhase.FETCH_PLAYER_MESSAGE);
 				return;
 			}
-		} catch (final StaleElementReferenceException | NoSuchElementException | TimeoutException
-				| UserSelectionNotPossibleException | FetchAnswerNotPossibleException e) {
+		} catch (final WebDriverException | UserSelectionNotPossibleException | FetchAnswerNotPossibleException e) {
 			if (this.mProblemSelfResolvingTries >= PROBLEM_SELF_RESOLVING_TRIES_MAX) {
 				// The problem could not get resolved in the limit
 				this.mWasProblemLastUpdate = true;
