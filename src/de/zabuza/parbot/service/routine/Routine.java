@@ -40,6 +40,10 @@ public final class Routine {
 	 */
 	private static final String EMPTY_TEXT = "";
 	/**
+	 * Needle that matches the name of the user in the chat with the API.
+	 */
+	private static final String GUEST_NEEDLE = "gast";
+	/**
 	 * Amount of how many update phases the routine is allowed to use for
 	 * resolving a problem by itself. If it does not resolve the problem within
 	 * this limit it must give up and throw the problem to parent objects.
@@ -438,7 +442,8 @@ public final class Routine {
 	 * in the game.
 	 */
 	private void postAnswer() {
-		final String adjustedAnswer = this.mPlayerAnswer;
+		final String adjustedAnswer = this.mPlayerAnswer.replaceAll(REGEX_CASE_INSENSITIVE_OPERATOR + GUEST_NEEDLE,
+				this.mCurrentSelectedUser);
 		this.mChat.submitMessage(adjustedAnswer, this.mChatTypeRestriction);
 	}
 
