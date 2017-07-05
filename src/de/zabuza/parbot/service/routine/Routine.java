@@ -434,7 +434,9 @@ public final class Routine {
 		}
 
 		// Update the last known message
-		this.mLastKnownMessage = chatMessages.get(chatMessages.size() - 1);
+		if (!chatMessages.isEmpty()) {
+			this.mLastKnownMessage = chatMessages.get(chatMessages.size() - 1);
+		}
 	}
 
 	/**
