@@ -1,5 +1,6 @@
 package de.zabuza.parbot.service.routine;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Optional;
 
@@ -10,7 +11,9 @@ import org.openqa.selenium.WebDriverException;
 
 import de.zabuza.brainbridge.client.BrainBridgeClient;
 import de.zabuza.brainbridge.client.BrainInstance;
+import de.zabuza.grawlox.Grawlox;
 import de.zabuza.parbot.exceptions.FetchAnswerNotPossibleException;
+import de.zabuza.parbot.exceptions.ProfanityFilterNoDatabaseException;
 import de.zabuza.parbot.exceptions.UserSelectionNotPossibleException;
 import de.zabuza.parbot.logging.ILogger;
 import de.zabuza.parbot.logging.LoggerFactory;
@@ -137,6 +140,11 @@ public final class Routine {
 	private int mProblemSelfResolvingTries;
 
 	/**
+	 * Profanity filter to use for rejecting profane messages.
+	 */
+	private final Grawlox mProfanityFilter;
+
+	/**
 	 * The service to use for callback when encountering a problem that needs to
 	 * be resolved.
 	 */
@@ -176,6 +184,11 @@ public final class Routine {
 		this.mChat = chat;
 		this.mBrainBridge = brainBridge;
 		this.mPhase = EPhase.SELECT_USER;
+		try {
+			this.mProfanityFilter = Grawlox.createFromDefault();
+		} catch (final IOException e) {
+			throw new ProfanityFilterNoDatabaseException();
+		}
 
 		this.mChatbotUsername = botSettingsProvider.getChatbotUsername();
 		this.mFocusLostTimeout = botSettingsProvider.getFocusLostTimeout().longValue();
@@ -423,8 +436,10 @@ public final class Routine {
 
 			// Search unknown messages of the current selected player
 			final Optional<String> sender = currentMessage.getSender();
-			if (sender.isPresent() && this.mCurrentSelectedUser.equals(sender.get())) {
-				// The message is unknown and of the current selected player
+			if (sender.isPresent() && this.mCurrentSelectedUser.equals(sender.get())
+					&& !this.mProfanityFilter.isProfane(currentMessage.getContent())) {
+				// The message is unknown, of the current selected player and
+				// not profane
 				// Remove all occurrences of the bot name so that the chat bot
 				// feels addressed
 				this.mPlayerMessage = currentMessage.getContent()
@@ -446,7 +461,10 @@ public final class Routine {
 	private void postAnswer() {
 		final String adjustedAnswer = this.mPlayerAnswer.replaceAll(REGEX_CASE_INSENSITIVE_OPERATOR + GUEST_NEEDLE,
 				this.mCurrentSelectedUser);
-		this.mChat.submitMessage(adjustedAnswer, this.mChatTypeRestriction);
+		// Do not post the message if it is profane
+		if (!this.mProfanityFilter.isProfane(adjustedAnswer)) {
+			this.mChat.submitMessage(adjustedAnswer, this.mChatTypeRestriction);
+		}
 	}
 
 	/**
@@ -473,8 +491,10 @@ public final class Routine {
 			final Optional<String> sender = lastMessage.getSender();
 			if (sender.isPresent()) {
 				final String senderCandidate = sender.get();
-				// Reject the candidate if it is the chat-bot itself
-				if (!senderCandidate.equals(this.mChatbotUsername)) {
+				// Reject the candidate if it is the chat-bot itself or the
+				// message is profane
+				if (!senderCandidate.equals(this.mChatbotUsername)
+						&& !this.mProfanityFilter.isProfane(lastMessage.getContent())) {
 					this.mCurrentSelectedUser = senderCandidate;
 					break;
 				}
