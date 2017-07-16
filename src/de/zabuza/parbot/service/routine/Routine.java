@@ -437,7 +437,7 @@ public final class Routine {
 			// Search unknown messages of the current selected player
 			final Optional<String> sender = currentMessage.getSender();
 			if (sender.isPresent() && this.mCurrentSelectedUser.equals(sender.get())
-					&& !this.mProfanityFilter.isProfane(currentMessage.getContent())) {
+					&& !isProfane(currentMessage.getContent())) {
 				// The message is unknown, of the current selected player and
 				// not profane
 				// Remove all occurrences of the bot name so that the chat bot
@@ -455,6 +455,23 @@ public final class Routine {
 	}
 
 	/**
+	 * Whether the given input is profane, i.e. if it contains swearwords.<br>
+	 * Also allows logging of profane messages.
+	 * 
+	 * @param message
+	 *            The input in question
+	 * @return <tt>True</tt> if the input contains swearwords, <tt>false</tt>
+	 *         otherwise
+	 */
+	private boolean isProfane(final String message) {
+		final boolean isProfane = this.mProfanityFilter.isProfane(message);
+		if (isProfane) {
+			this.mLogger.logInfo("Message is profane: " + message);
+		}
+		return isProfane;
+	}
+
+	/**
 	 * Posts the current answer of the chat bot to the current selected player
 	 * in the game.
 	 */
@@ -462,7 +479,7 @@ public final class Routine {
 		final String adjustedAnswer = this.mPlayerAnswer.replaceAll(REGEX_CASE_INSENSITIVE_OPERATOR + GUEST_NEEDLE,
 				this.mCurrentSelectedUser);
 		// Do not post the message if it is profane
-		if (!this.mProfanityFilter.isProfane(adjustedAnswer)) {
+		if (!isProfane(adjustedAnswer)) {
 			this.mChat.submitMessage(adjustedAnswer, this.mChatTypeRestriction);
 		}
 	}
@@ -493,8 +510,7 @@ public final class Routine {
 				final String senderCandidate = sender.get();
 				// Reject the candidate if it is the chat-bot itself or the
 				// message is profane
-				if (!senderCandidate.equals(this.mChatbotUsername)
-						&& !this.mProfanityFilter.isProfane(lastMessage.getContent())) {
+				if (!senderCandidate.equals(this.mChatbotUsername) && !isProfane(lastMessage.getContent())) {
 					this.mCurrentSelectedUser = senderCandidate;
 					break;
 				}
