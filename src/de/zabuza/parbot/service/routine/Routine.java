@@ -64,6 +64,37 @@ public final class Routine {
 	 */
 	private static final String REGEX_CASE_INSENSITIVE_OPERATOR = "(?i)";
 	/**
+	 * Pattern that matches all characters that get ignored on comparing
+	 * messages to determine if they are identical.
+	 */
+	private static final String REGEX_IGNORE_ON_MESSAGES_COMPARISON = "[^A-Za-z]";
+
+	/**
+	 * Whether the two given messages are identical. Comparison is made in lower
+	 * case without special symbols.
+	 * 
+	 * @param firstMessage
+	 *            The first message to compare with
+	 * @param secondMessage
+	 *            The second message to compare against
+	 * @return <tt>True</tt> if the two given messages are identical,
+	 *         <tt>false</tt> if not
+	 */
+	private static boolean areMessagesIdentical(final String firstMessage, final String secondMessage) {
+		if (firstMessage == null || secondMessage == null) {
+			return false;
+		}
+
+		// Compare in lower case without special symbols
+		final String firstMessagePrepared = firstMessage.toLowerCase().replaceAll(REGEX_IGNORE_ON_MESSAGES_COMPARISON,
+				EMPTY_TEXT);
+		final String secondMessagePrepared = secondMessage.toLowerCase().replaceAll(REGEX_IGNORE_ON_MESSAGES_COMPARISON,
+				EMPTY_TEXT);
+
+		return firstMessagePrepared.equals(secondMessagePrepared);
+	}
+
+	/**
 	 * The client to use for accessing the brain bridge API.
 	 */
 	private final BrainBridgeClient mBrainBridge;
@@ -131,6 +162,7 @@ public final class Routine {
 	 * successfully passes an update phase without encountering a problem again.
 	 */
 	private int mProblemSelfResolvingPhasesWithoutProblem;
+
 	/**
 	 * Amount of how often the routine has tried to resolve a problem by itself
 	 * in a row. The counter is reseted once it finishes an update phase without
@@ -478,8 +510,9 @@ public final class Routine {
 	private void postAnswer() {
 		final String adjustedAnswer = this.mPlayerAnswer.replaceAll(REGEX_CASE_INSENSITIVE_OPERATOR + GUEST_NEEDLE,
 				this.mCurrentSelectedUser);
-		// Do not post the message if it is profane
-		if (!isProfane(adjustedAnswer)) {
+		// Do not post the message if it is profane or identical to the initial
+		// message of the player (could get interpreted as spam)
+		if (!isProfane(adjustedAnswer) && !areMessagesIdentical(this.mPlayerMessage, this.mPlayerAnswer)) {
 			this.mChat.submitMessage(adjustedAnswer, this.mChatTypeRestriction);
 		}
 	}
