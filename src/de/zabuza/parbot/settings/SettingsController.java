@@ -43,9 +43,14 @@ public final class SettingsController
 	 */
 	private static final String KEY_IDENTIFIER_FOCUS_LOST_TIMEOUT = "focusLostTimeout";
 	/**
+	 * Key identifier for the language detection API key.
+	 */
+	private static final String KEY_IDENTIFIER_LANGUAGE_DETECTION_API_KEY = "languageDetectionApiKey";
+	/**
 	 * Key identifier for the password.
 	 */
 	private static final String KEY_IDENTIFIER_PASSWORD = "password";
+
 	/**
 	 * Key identifier for port settings.
 	 */
@@ -55,7 +60,6 @@ public final class SettingsController
 	 * Key identifier for service settings.
 	 */
 	private static final String KEY_IDENTIFIER_SERVER_ADDRESS = "serverAddress";
-
 	/**
 	 * Key identifier for the time window.
 	 */
@@ -68,7 +72,6 @@ public final class SettingsController
 	 * Key identifier for the username.
 	 */
 	private static final String KEY_IDENTIFIER_USERNAME = "username";
-
 	/**
 	 * Key identifier for the selected world.
 	 */
@@ -227,6 +230,22 @@ public final class SettingsController
 			return Long.valueOf(value);
 		}
 		return null;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * de.zabuza.parbot.settings.IBotSettingsProvider#getLanguageDetectionAPIKey
+	 * ()
+	 */
+	@Override
+	public String getLanguageDetectionAPIKey() {
+		final String languageDetectionAPIKey = getSetting(KEY_IDENTIFIER_LANGUAGE_DETECTION_API_KEY);
+		if (languageDetectionAPIKey.equals(UNKNOWN_KEY_VALUE)) {
+			return null;
+		}
+		return languageDetectionAPIKey;
 	}
 
 	/*
@@ -423,6 +442,21 @@ public final class SettingsController
 	public void setFocusLostTimeout(final long timeout) {
 		final String key = KEY_IDENTIFIER_FOCUS_LOST_TIMEOUT;
 		setSetting(key, Long.toString(timeout));
+	}
+
+	/**
+	 * Sets the key for the language detection API to use, as registered at
+	 * <a href="detectlanguage.com">detectlanguage.com</a>.
+	 * 
+	 * @param languageDetectionAPIKey
+	 *            The key for the language detection API to set, as registered
+	 *            at <a href="detectlanguage.com">detectlanguage.com</a>.
+	 */
+	public void setLanguageDetectionAPIKey(final String languageDetectionAPIKey) {
+		if (!languageDetectionAPIKey.equals(UNKNOWN_KEY_VALUE)) {
+			final String key = KEY_IDENTIFIER_LANGUAGE_DETECTION_API_KEY;
+			setSetting(key, languageDetectionAPIKey);
+		}
 	}
 
 	/**

@@ -1,4 +1,4 @@
-# Grawlox
+﻿# Grawlox
 # List of swear words (one per line)
 # Comments can be made by starting a line with #
 # Grawlox will convert all words to lower case and remove special characters and leetspeak.
@@ -458,6 +458,7 @@ scheissen
 scheiß
 schise
 schlampe
+schmock
 schmutzig
 schritt
 schwanz

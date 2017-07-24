@@ -9,6 +9,8 @@ import javax.imageio.ImageIO;
 
 import org.openqa.selenium.remote.DesiredCapabilities;
 
+import com.detectlanguage.DetectLanguage;
+
 import de.zabuza.brainbridge.client.BrainBridgeClient;
 import de.zabuza.parbot.exceptions.EmptyUserCredentialsException;
 import de.zabuza.parbot.logging.ILogger;
@@ -203,6 +205,9 @@ public final class Parbot {
 					|| world == null) {
 				throw new EmptyUserCredentialsException();
 			}
+
+			// Set the language detection API key
+			DetectLanguage.apiKey = botSettingsProvider.getLanguageDetectionAPIKey();
 
 			// Create Freewar API
 			final EBrowser browser = browserSettingsProvider.getBrowser();

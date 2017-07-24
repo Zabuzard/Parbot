@@ -2,6 +2,7 @@ package de.zabuza.parbot.service.routine;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import org.openqa.selenium.NoSuchElementException;
@@ -9,10 +10,15 @@ import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriverException;
 
+import com.detectlanguage.DetectLanguage;
+import com.detectlanguage.Result;
+import com.detectlanguage.errors.APIError;
+
 import de.zabuza.brainbridge.client.BrainBridgeClient;
 import de.zabuza.brainbridge.client.BrainInstance;
 import de.zabuza.grawlox.Grawlox;
 import de.zabuza.parbot.exceptions.FetchAnswerNotPossibleException;
+import de.zabuza.parbot.exceptions.LanguageDetectionServiceUnavailableException;
 import de.zabuza.parbot.exceptions.ProfanityFilterNoDatabaseException;
 import de.zabuza.parbot.exceptions.UserSelectionNotPossibleException;
 import de.zabuza.parbot.logging.ILogger;
@@ -39,6 +45,10 @@ import de.zabuza.sparkle.freewar.chat.Message;
  */
 public final class Routine {
 	/**
+	 * Needle that matches the original name of the user from the chat API.
+	 */
+	private static final String BOT_NEEDLE = "brain";
+	/**
 	 * Constant for an empty text.
 	 */
 	private static final String EMPTY_TEXT = "";
@@ -46,6 +56,10 @@ public final class Routine {
 	 * Needle that matches the name of the user in the chat with the API.
 	 */
 	private static final String GUEST_NEEDLE = "gast";
+	/**
+	 * Constant representing the german language.
+	 */
+	private static final String LANGUAGE_GERMAN = "de";
 	/**
 	 * Amount of how many update phases the routine is allowed to use for
 	 * resolving a problem by itself. If it does not resolve the problem within
@@ -68,6 +82,11 @@ public final class Routine {
 	 * messages to determine if they are identical.
 	 */
 	private static final String REGEX_IGNORE_ON_MESSAGES_COMPARISON = "[^A-Za-z]";
+	/**
+	 * Matches player messages that are not relevant. Such message should not
+	 * get answered by the bot.
+	 */
+	private static final String REGEX_PLAYER_MESSAGE_NOT_RELEVANT = "\\s*(fc|afk)\\s*";
 
 	/**
 	 * Whether the two given messages are identical. Comparison is made in lower
@@ -92,6 +111,19 @@ public final class Routine {
 				EMPTY_TEXT);
 
 		return firstMessagePrepared.equals(secondMessagePrepared);
+	}
+
+	/**
+	 * Whether the given message is a relevant player message. If <tt>false</tt>
+	 * than the bot should not answer to it.
+	 * 
+	 * @param message
+	 *            The message in question
+	 * @return <tt>True</tt> if the given message is a relevant player message,
+	 *         <tt>false</tt> otherwise
+	 */
+	private static boolean isPlayerMessageRelevant(final String message) {
+		return !message.matches(REGEX_CASE_INSENSITIVE_OPERATOR + REGEX_PLAYER_MESSAGE_NOT_RELEVANT);
 	}
 
 	/**
@@ -157,6 +189,7 @@ public final class Routine {
 	 * there is no unknown message.
 	 */
 	private String mPlayerMessage;
+
 	/**
 	 * Amount of how often after encountering a problem the routine has
 	 * successfully passes an update phase without encountering a problem again.
@@ -469,9 +502,10 @@ public final class Routine {
 			// Search unknown messages of the current selected player
 			final Optional<String> sender = currentMessage.getSender();
 			if (sender.isPresent() && this.mCurrentSelectedUser.equals(sender.get())
-					&& !isProfane(currentMessage.getContent())) {
-				// The message is unknown, of the current selected player and
-				// not profane
+					&& !isProfane(currentMessage.getContent())
+					&& isPlayerMessageRelevant(currentMessage.getContent())) {
+				// The message is unknown, of the current selected player,
+				// not profane and relevant
 				// Remove all occurrences of the bot name so that the chat bot
 				// feels addressed
 				this.mPlayerMessage = currentMessage.getContent()
@@ -508,12 +542,40 @@ public final class Routine {
 	 * in the game.
 	 */
 	private void postAnswer() {
-		final String adjustedAnswer = this.mPlayerAnswer.replaceAll(REGEX_CASE_INSENSITIVE_OPERATOR + GUEST_NEEDLE,
-				this.mCurrentSelectedUser);
-		// Do not post the message if it is profane or identical to the initial
-		// message of the player (could get interpreted as spam)
+		final String adjustedAnswer = this.mPlayerAnswer
+				.replaceAll(REGEX_CASE_INSENSITIVE_OPERATOR + GUEST_NEEDLE, this.mCurrentSelectedUser)
+				.replaceAll(REGEX_CASE_INSENSITIVE_OPERATOR + BOT_NEEDLE, this.mChatbotUsername);
+
+		// Do not post the message if it is profane, identical to the initial
+		// message of the player (could get interpreted as spam) or not german
 		if (!isProfane(adjustedAnswer) && !areMessagesIdentical(this.mPlayerMessage, this.mPlayerAnswer)) {
-			this.mChat.submitMessage(adjustedAnswer, this.mChatTypeRestriction);
+			// Check whether the message is german
+			try {
+				boolean isLanguageAcceptable = true;
+				Result unacceptableResult = null;
+				final List<Result> results = DetectLanguage.detect(adjustedAnswer);
+				for (final Result result : results) {
+					if (!result.language.equals(LANGUAGE_GERMAN) || !result.isReliable) {
+						isLanguageAcceptable = false;
+						unacceptableResult = result;
+						break;
+					}
+				}
+
+				if (isLanguageAcceptable) {
+					this.mChat.submitMessage(adjustedAnswer, this.mChatTypeRestriction);
+				} else {
+					if (unacceptableResult == null) {
+						throw new AssertionError();
+					}
+
+					// Log the message and do not post it
+					this.mLogger.logInfo("Message has unacceptable language (" + unacceptableResult.language + ", "
+							+ unacceptableResult.confidence + "): " + adjustedAnswer);
+				}
+			} catch (final APIError exception) {
+				throw new LanguageDetectionServiceUnavailableException();
+			}
 		}
 	}
 

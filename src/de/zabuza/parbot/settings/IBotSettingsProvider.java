@@ -33,6 +33,15 @@ public interface IBotSettingsProvider {
 	public Long getFocusLostTimeout();
 
 	/**
+	 * Gets the key for the language detection API to use, as registered at
+	 * <a href="detectlanguage.com">detectlanguage.com</a>.
+	 * 
+	 * @return The key for the language detection API to use, as registered at
+	 *         <a href="detectlanguage.com">detectlanguage.com</a>.
+	 */
+	public String getLanguageDetectionAPIKey();
+
+	/**
 	 * Gets the port at which the service can be reached.
 	 * 
 	 * @return The port at which the service can be reached or <tt>null</tt> if
